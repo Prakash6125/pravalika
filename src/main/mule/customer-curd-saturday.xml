@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+    <http:listener-config name="customer-curd-saturday-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="customer-curd-saturday-config" api="resource::0b7706ce-e526-4ddd-8e6d-37d837e90dde:customer-curd-saturday:1.0.1:raml:zip:customer-curd-saturday.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <db:config name="Database_Config" doc:name="Database Config" doc:id="24563a88-77b9-4009-985c-4e23706a0a08" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="123456" database="hp" />
+	</db:config>
+	<flow name="customer-curd-saturday-main">
+        <http:listener config-ref="customer-curd-saturday-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="customer-curd-saturday-config" />
+    </flow>
+    <flow name="put:\updateCustomer:application\json:customer-curd-saturday-config">
+        <db:update doc:name="Update" doc:id="e6f54aad-6400-4cfa-b2be-2adda5f26787" config-ref="Database_Config">
+			<db:sql ><![CDATA[update hp.students set telephone=:telephone where id=:id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	id:payload.id,
+	telephone:payload.phone
+}]]]></db:input-parameters>
+		</db:update>
+		<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "updated phone number success"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="delete:\deleteCustomer:customer-curd-saturday-config">
+        <db:delete doc:name="Delete" doc:id="98581534-7003-4153-8b96-b25bd9f96434" config-ref="Database_Config">
+			<db:sql ><![CDATA[delete from hp.students where id=:id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	id:attributes.queryParams.customerid
+}]]]></db:input-parameters>
+		</db:delete>
+		<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "customer delete success"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\getCustomerById:customer-curd-saturday-config">
+        <db:select doc:name="Select" doc:id="e5f1d9a2-9171-4220-8804-62881b331879" config-ref="Database_Config">
+			<db:sql ><![CDATA[select * from hp.students where id=:id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	id:attributes.queryParams.customerid
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="post:\creatCustomer:application\json:customer-curd-saturday-config">
+        <db:insert doc:name="Insert" doc:id="8c6a02bc-6b04-4006-81de-120feb15de88" config-ref="Database_Config">
+			<db:sql ><![CDATA[insert into hp.students(id,name,email,address,telephone) values(:id,:name,:email,:address,:telephone)]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	id:payload.id,
+	name:payload.name,
+	email:payload.email,
+	address:payload.address,
+	telephone:payload.telephone
+}]]]></db:input-parameters>
+		</db:insert>
+		<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "customer created success"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+</mule>
